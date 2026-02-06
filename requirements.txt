@@ -215,3 +215,4 @@ yt-dlp==2025.6.30
 ytmusicapi==1.10.3
 zipp==3.23.0
 zstandard==0.23.0
+gunicorn
