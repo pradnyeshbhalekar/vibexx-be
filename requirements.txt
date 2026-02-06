@@ -25,8 +25,6 @@ distro==1.9.0
 dnspython==2.7.0
 docutils==0.21.2
 email-validator==2.3.0
-essentia==2.1b6.dev1177
-essentia-tensorflow==2.1b6.dev1389
 et_xmlfile==2.0.0
 exceptiongroup==1.2.2
 facenet-pytorch==2.6.0
