@@ -9,3 +9,8 @@ requests
 python-dotenv
 gunicorn
 Flask-Cors
+fer
+tensorflow
+opencv-python-headless
+numpy
+pillow
