@@ -13,4 +13,4 @@ numpy
 pillow
 moviepy>=1.0.3
 
-google-generativeai
+google-genai
