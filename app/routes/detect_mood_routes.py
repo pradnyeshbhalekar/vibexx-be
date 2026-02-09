@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from fer import FER
 import base64
 from io import BytesIO
 import numpy as np
@@ -48,6 +47,7 @@ def detect_mood():
         return jsonify({"ok": True}), 200
 
     try:
+        from fer import FER 
         data = request.get_json(silent=True)
 
         if not data or "image" not in data:
@@ -77,62 +77,62 @@ def detect_mood():
 
 
 # gemini
-@detect_mood_routes.route("/gemini", methods=["POST"])
-def detect_mood_gemini():
-    try:
-        data = request.get_json(silent=True)
-        if not data or "image" not in data:
-            return jsonify({"error": "Image missing"}), 400
+# @detect_mood_routes.route("/gemini", methods=["POST"])
+# def detect_mood_gemini():
+#     try:
+#         data = request.get_json(silent=True)
+#         if not data or "image" not in data:
+#             return jsonify({"error": "Image missing"}), 400
 
-        image = decode_base64_image(data["image"])
+#         image = decode_base64_image(data["image"])
 
-        prompt = """
-Analyze the facial expression in the image.
+#         prompt = """
+# Analyze the facial expression in the image.
 
-Rules:
-- Choose EXACTLY one emotion from: calm, happy, sad, angry
-- Return a confidence between 0 and 1
-- Write a short neutral explanation (1 sentence)
+# Rules:
+# - Choose EXACTLY one emotion from: calm, happy, sad, angry
+# - Return a confidence between 0 and 1
+# - Write a short neutral explanation (1 sentence)
 
-Return ONLY valid JSON in this format:
-{
-  "emotion": "calm | happy | sad | angry",
-  "confidence": number,
-  "description": string
-}
-"""
+# Return ONLY valid JSON in this format:
+# {
+#   "emotion": "calm | happy | sad | angry",
+#   "confidence": number,
+#   "description": string
+# }
+# """
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[prompt, image],
-        )
+#         response = client.models.generate_content(
+#             model="gemini-2.5-flash",
+#             contents=[prompt, image],
+#         )
 
-        # Gemini returns JSON as text
-        try:
-            result = json.loads(response.text)
-        except Exception:
-            raise ValueError("Gemini returned invalid JSON")
+#         # Gemini returns JSON as text
+#         try:
+#             result = json.loads(response.text)
+#         except Exception:
+#             raise ValueError("Gemini returned invalid JSON")
 
-        # 🔒 Normalize
-        emotion = result.get("emotion", "calm").lower()
-        if emotion not in ALLOWED_EMOTIONS:
-            emotion = "calm"
+#         # 🔒 Normalize
+#         emotion = result.get("emotion", "calm").lower()
+#         if emotion not in ALLOWED_EMOTIONS:
+#             emotion = "calm"
 
-        confidence = float(result.get("confidence", 0.5))
-        confidence = max(0.0, min(1.0, confidence))
+#         confidence = float(result.get("confidence", 0.5))
+#         confidence = max(0.0, min(1.0, confidence))
 
-        description = str(result.get("description", "")).strip()
+#         description = str(result.get("description", "")).strip()
 
-        return jsonify({
-            "emotion": emotion,
-            "confidence": confidence,
-            "description": description
-        })
+#         return jsonify({
+#             "emotion": emotion,
+#             "confidence": confidence,
+#             "description": description
+#         })
 
-    except Exception:
-        logging.exception("Gemini mood error")
-        return jsonify({
-            "emotion": "calm",
-            "confidence": 0.5,
-            "description": "Mood could not be confidently determined."
-        }), 200
+#     except Exception:
+#         logging.exception("Gemini mood error")
+#         return jsonify({
+#             "emotion": "calm",
+#             "confidence": 0.5,
+#             "description": "Mood could not be confidently determined."
+#         }), 200

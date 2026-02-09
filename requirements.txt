@@ -11,6 +11,6 @@ tensorflow==2.15.0
 opencv-python-headless
 numpy
 pillow
-moviepy
+moviepy>=1.0.3
 
 google-generativeai
