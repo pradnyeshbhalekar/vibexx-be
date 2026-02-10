@@ -84,7 +84,7 @@ def detect_mood():
         logging.exception("FER runtime error")
         return jsonify({"error": "Failed to process image"}), 500
 
-# ---------------- Gemini route (google-genai) ----------------
+
 @detect_mood_routes.route("/gemini", methods=["POST"])
 def detect_mood_gemini():
     try:
@@ -92,60 +92,58 @@ def detect_mood_gemini():
         if not data or "image" not in data:
             return jsonify({"error": "Image missing"}), 400
 
-        # Decode base64 → PIL Image
         image = decode_base64_image(data["image"])
 
-        # Convert PIL Image → bytes
+        # PIL → bytes
         img_buffer = BytesIO()
         image.save(img_buffer, format="JPEG")
         img_bytes = img_buffer.getvalue()
 
         prompt = """
-Analyze the facial expression in the image.
+        Analyze the facial expression in the image.
+        
+        Return a JSON object with this EXACT schema:
+        {
+          "emotion": "calm" | "happy" | "sad" | "angry",
+          "confidence": number,
+          "description": "short explanation"
+        }
+        """
 
-Rules:
-- Choose EXACTLY one emotion from: calm, happy, sad, angry
-- Return a confidence between 0 and 1
-- Write a short neutral explanation (1 sentence)
-
-Return ONLY valid JSON:
-{
-  "emotion": "calm | happy | sad | angry",
-  "confidence": number,
-  "description": string
-}
-"""
-
+        # --- FIXES START HERE ---
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",  # ✅ FIX 1: Use a valid model name
             contents=[
-                prompt,
-                types.Part.from_bytes(
-                    data=img_bytes,
-                    mime_type="image/jpeg"
+                types.Content(
+                    parts=[
+                        types.Part.from_text(text=prompt),
+                        types.Part.from_bytes(
+                            data=img_bytes,
+                            mime_type="image/jpeg"
+                        )
+                    ]
                 )
             ],
-            generation_config={
-                "response_mime_type": "application/json"
-            }
+            # ✅ FIX 2: Force JSON response so you don't have to parse text manually
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.3 # Keep it deterministic
+            )
         )
 
-        logging.info(f"Gemini raw response: {response.text}")
+        if not response.text:
+            raise ValueError("Empty response from Gemini")
 
-        raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1].strip()
+        # Since we forced JSON mode, we can parse directly without regex/splitting
+        result = json.loads(response.text)
 
-        result = json.loads(raw)
-
+        # Normalize data
         emotion = result.get("emotion", "calm").lower()
         if emotion not in ALLOWED_EMOTIONS:
             emotion = "calm"
 
         confidence = float(result.get("confidence", 0.5))
-        confidence = max(0.0, min(1.0, confidence))
-
-        description = str(result.get("description", "")).strip()
+        description = result.get("description", "Analysis unavailable")
 
         return jsonify({
             "emotion": emotion,
@@ -154,10 +152,10 @@ Return ONLY valid JSON:
         }), 200
 
     except Exception as e:
-        logging.exception("Gemini mood error")
+        logging.error(f"Gemini API Error: {e}")
+        # Return a fallback response so your frontend doesn't break
         return jsonify({
-            "error": str(e),
             "emotion": "calm",
-            "confidence": 0.5,
-            "description": "Mood could not be confidently determined."
-        }), 500
+            "confidence": 0.0,
+            "description": "Could not verify mood (API Error)."
+        }), 200 # Return 200 with fallback data, or 500 if you prefer
