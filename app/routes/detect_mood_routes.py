@@ -85,7 +85,6 @@ def detect_mood():
         return jsonify({"error": "Failed to process image"}), 500
 
 # ---------------- Gemini route (google-genai) ----------------
-
 @detect_mood_routes.route("/gemini", methods=["POST"])
 def detect_mood_gemini():
     try:
@@ -93,7 +92,13 @@ def detect_mood_gemini():
         if not data or "image" not in data:
             return jsonify({"error": "Image missing"}), 400
 
+        # Decode base64 → PIL Image
         image = decode_base64_image(data["image"])
+
+        # Convert PIL Image → bytes
+        img_buffer = BytesIO()
+        image.save(img_buffer, format="JPEG")
+        img_bytes = img_buffer.getvalue()
 
         prompt = """
 Analyze the facial expression in the image.
@@ -115,14 +120,23 @@ Return ONLY valid JSON:
             model="gemini-2.5-flash",
             contents=[
                 prompt,
-                types.Part.from_image(image)
-            ]
+                types.Part.from_bytes(
+                    data=img_bytes,
+                    mime_type="image/jpeg"
+                )
+            ],
+            generation_config={
+                "response_mime_type": "application/json"
+            }
         )
 
-        try:
-            result = json.loads(response.text)
-        except Exception:
-            raise ValueError("Gemini returned invalid JSON")
+        logging.info(f"Gemini raw response: {response.text}")
+
+        raw = response.text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1].strip()
+
+        result = json.loads(raw)
 
         emotion = result.get("emotion", "calm").lower()
         if emotion not in ALLOWED_EMOTIONS:
@@ -139,10 +153,11 @@ Return ONLY valid JSON:
             "description": description
         }), 200
 
-    except Exception:
+    except Exception as e:
         logging.exception("Gemini mood error")
         return jsonify({
+            "error": str(e),
             "emotion": "calm",
             "confidence": 0.5,
             "description": "Mood could not be confidently determined."
-        }), 200
+        }), 500
