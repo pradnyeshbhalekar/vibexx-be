@@ -17,7 +17,7 @@ def callback():
     code = request.args.get("code")
     error = request.args.get("error")
 
-    frontend_redirect_url = "http://127.0.0.1:3000/top-artists"
+    frontend_redirect_url = "https://vibexx.onrender.com/top-artists"
 
     # Spotify error case
     if error:
