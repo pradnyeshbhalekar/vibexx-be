@@ -6,6 +6,7 @@ auth_routes = Blueprint("auth_routes", __name__, url_prefix='')
 
 @auth_routes.route('/login')
 def login():
+    session.clear() 
     sp_oauth = get_spotify_oauth()
     auth_url = sp_oauth.get_authorize_url()
     return redirect(auth_url)
