@@ -9,13 +9,12 @@ def create_app():
 
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    IS_PROD = os.getenv("FLASK_ENV") == "production"
     app.config.update(
-    SESSION_COOKIE_SAMESITE="None",
-    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SECURE=IS_PROD,
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_NAME="vibexx_session",
-    SESSION_COOKIE_DOMAIN=None, 
-    PERMANENT_SESSION_LIFETIME=86400 * 7  
+    SESSION_COOKIE_SAMESITE="None" if IS_PROD else "Lax",
+    PERMANENT_SESSION_LIFETIME=86400 * 7
 )
 
     # Configure CORS first
