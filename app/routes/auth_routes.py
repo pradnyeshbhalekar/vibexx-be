@@ -29,5 +29,6 @@ def callback():
     sp_oauth.get_access_token(code, as_dict=True)
 
     session.permanent = True  
+    print("SESSION AFTER CALLBACK:", list(session.keys()))
 
     return redirect(f"{frontend_redirect_url}?success=true")
