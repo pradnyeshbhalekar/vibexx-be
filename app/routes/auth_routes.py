@@ -1,9 +1,11 @@
+import os
 from flask import Blueprint, redirect, request
 import spotipy
 from app.utils.spotify_auth import get_spotify_oauth
-from app.utils.jwt_utils import create_jwt
+from app.utils.jwt import create_jwt
 
 auth_routes = Blueprint("auth_routes", __name__)
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 @auth_routes.route("/login")
 def login():
@@ -38,5 +40,5 @@ def callback():
     })
 
     return redirect(
-        f"https://vibexx.onrender.com/top-artists?token={jwt_token}"
+        f"{FRONTEND_URL}/top-artists?token={jwt_token}"
     )
