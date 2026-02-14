@@ -110,9 +110,9 @@ def detect_mood_gemini():
         }
         """
 
-        # --- FIXES START HERE ---
+
         response = client.models.generate_content(
-            model="gemini-flash-latest",  # ✅ FIX 1: Use a valid model name
+            model="gemini-flash-latest", 
             contents=[
                 types.Content(
                     parts=[
@@ -124,20 +124,19 @@ def detect_mood_gemini():
                     ]
                 )
             ],
-            # ✅ FIX 2: Force JSON response so you don't have to parse text manually
+
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.3 # Keep it deterministic
+                temperature=0.3 
             )
         )
 
         if not response.text:
             raise ValueError("Empty response from Gemini")
 
-        # Since we forced JSON mode, we can parse directly without regex/splitting
+
         result = json.loads(response.text)
 
-        # Normalize data
         emotion = result.get("emotion", "calm").lower()
         if emotion not in ALLOWED_EMOTIONS:
             emotion = "calm"
@@ -153,9 +152,9 @@ def detect_mood_gemini():
 
     except Exception as e:
         logging.error(f"Gemini API Error: {e}")
-        # Return a fallback response so your frontend doesn't break
+
         return jsonify({
             "emotion": "calm",
             "confidence": 0.0,
             "description": "Could not verify mood (API Error)."
-        }), 200 # Return 200 with fallback data, or 500 if you prefer
+        }), 200 
