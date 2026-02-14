@@ -11,5 +11,5 @@ opencv-python==4.9.0.80
 numpy
 pillow
 moviepy>=1.0.3
-
+PyJWT
 google-genai
