@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 import base64
 from io import BytesIO
 import numpy as np
@@ -48,8 +48,6 @@ detect_mood_routes = Blueprint(
 
 @detect_mood_routes.route("/", methods=["POST", "OPTIONS"])
 def detect_mood():
-    if request.method == "OPTIONS":
-        return jsonify({"ok": True}), 200
 
     # 🔒 Lazy import (deployment-safe)
     try:
@@ -85,20 +83,29 @@ def detect_mood():
         return jsonify({"error": "Failed to process image"}), 500
 
 
-@detect_mood_routes.route("/gemini", methods=["POST"])
+@detect_mood_routes.route("/gemini", methods=["POST", "OPTIONS"])
 def detect_mood_gemini():
+
+    # ✅ Handle preflight
+    if request.method == "OPTIONS":
+        resp = make_response("", 204)
+        resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return resp
+
     try:
         data = request.get_json(silent=True)
         if not data or "image" not in data:
-            return jsonify({"error": "Image missing"}), 400
-
+            resp = jsonify({"error": "Image missing"})
+            resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
+            return resp, 400
 
         image = decode_base64_image(data["image"])
 
         img_buffer = BytesIO()
         image.save(img_buffer, format="JPEG")
         img_bytes = img_buffer.getvalue()
-
 
         prompt = """
 You are a JSON API.
@@ -114,7 +121,6 @@ Schema:
   "description": string
 }
 """
-
 
         response = client.models.generate_content(
             model="gemini-flash-latest",
@@ -136,18 +142,16 @@ Schema:
         )
 
         if not response or not response.text:
-            logging.error("Gemini returned empty response")
-            return jsonify({"error": "Empty response from Gemini"}), 500
-
-        logging.info(f"GEMINI RAW RESPONSE 👉 {response.text}")
-
+            resp = jsonify({"error": "Empty response from Gemini"})
+            resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
+            return resp, 500
 
         try:
             result = json.loads(response.text)
-        except json.JSONDecodeError as e:
-            logging.error(f"Invalid JSON from Gemini: {response.text}")
-            return jsonify({"error": "Invalid JSON from Gemini"}), 500
-
+        except json.JSONDecodeError:
+            resp = jsonify({"error": "Invalid JSON from Gemini"})
+            resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
+            return resp, 500
 
         emotion = str(result.get("emotion", "calm")).lower()
         if emotion not in ALLOWED_EMOTIONS:
@@ -160,16 +164,19 @@ Schema:
 
         description = result.get("description", "Analysis unavailable")
 
-
-        return jsonify({
+        resp = jsonify({
             "emotion": emotion,
             "confidence": confidence,
             "description": description
-        }), 200
+        })
+        resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
+        return resp, 200
 
     except Exception as e:
         logging.exception("Gemini mood detection failed")
-        return jsonify({
+        resp = jsonify({
             "error": "Mood detection failed",
             "details": str(e)
-        }), 500
+        })
+        resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
+        return resp, 500
