@@ -61,6 +61,9 @@ def create_playlist():
             return {"error": "Ranking failed"}, 400
 
         top_tracks = [t for t in ranked_tracks if t.get("id")][:limit]
+        track_ids = [t["id"] for t in top_tracks]
+        spotify_tracks = sp.tracks(track_ids)["tracks"]
+
         track_uris = [f"spotify:track:{t['id']}" for t in top_tracks]
 
         if not track_uris:
@@ -78,11 +81,23 @@ def create_playlist():
 
         for i in range(0, len(track_uris), 100):
             sp.playlist_add_items(playlist["id"], track_uris[i:i+100])
+        
+        tracks_payload = []
+        for t in spotify_tracks:
+            tracks_payload.append({
+        "id": t["id"],
+        "name": t["name"],
+        "artists": [a["name"] for a in t["artists"]],
+        "album_name": t["album"]["name"],
+        "image": t["album"]["images"][0]["url"] if t["album"]["images"] else None,
+        "spotify_url": t["external_urls"]["spotify"],
+    })
 
         return {
             "playlist_id": playlist["id"],
             "playlist_url": playlist["external_urls"]["spotify"],
             "track_count": len(track_uris),
+            "tracks": tracks_payload,
         }
 
     except Exception as e:
