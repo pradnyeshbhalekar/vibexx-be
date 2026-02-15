@@ -92,8 +92,21 @@ def create_playlist():
         "image": t["album"]["images"][0]["url"] if t["album"]["images"] else None,
         "spotify_url": t["external_urls"]["spotify"],
     })
+        artists_info = sp.artists(selected_artists)["artists"]
+        selected_artists_payload = [
+    {
+        "id": a["id"],
+        "name": a["name"],
+        "image": a["images"][0]["url"] if a["images"] else None,
+    }
+    for a in artists_info
+]
+        
 
         return {
+            "playlist_name":playlist['name'],
+            "mood":mood,
+            "selected_artists": selected_artists_payload,
             "playlist_id": playlist["id"],
             "playlist_url": playlist["external_urls"]["spotify"],
             "track_count": len(track_uris),
