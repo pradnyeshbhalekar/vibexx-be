@@ -85,21 +85,14 @@ def detect_mood():
 
 @detect_mood_routes.route("/gemini", methods=["POST", "OPTIONS"])
 def detect_mood_gemini():
-
-    # ✅ Handle preflight
+    # Let Flask-CORS handle OPTIONS automatically
     if request.method == "OPTIONS":
-        resp = make_response("", 204)
-        resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
-        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        return resp
+        return "", 204
 
     try:
         data = request.get_json(silent=True)
         if not data or "image" not in data:
-            resp = jsonify({"error": "Image missing"})
-            resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
-            return resp, 400
+            return jsonify({"error": "Image missing"}), 400
 
         image = decode_base64_image(data["image"])
 
@@ -142,41 +135,23 @@ Schema:
         )
 
         if not response or not response.text:
-            resp = jsonify({"error": "Empty response from Gemini"})
-            resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
-            return resp, 500
+            return jsonify({"error": "Empty response from Gemini"}), 500
 
-        try:
-            result = json.loads(response.text)
-        except json.JSONDecodeError:
-            resp = jsonify({"error": "Invalid JSON from Gemini"})
-            resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
-            return resp, 500
+        result = json.loads(response.text)
 
-        emotion = str(result.get("emotion", "calm")).lower()
+        emotion = result.get("emotion", "calm").lower()
         if emotion not in ALLOWED_EMOTIONS:
             emotion = "calm"
 
-        try:
-            confidence = float(result.get("confidence", 0.0))
-        except (TypeError, ValueError):
-            confidence = 0.0
-
+        confidence = float(result.get("confidence", 0.0))
         description = result.get("description", "Analysis unavailable")
 
-        resp = jsonify({
+        return jsonify({
             "emotion": emotion,
             "confidence": confidence,
             "description": description
-        })
-        resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
-        return resp, 200
+        }), 200
 
     except Exception as e:
         logging.exception("Gemini mood detection failed")
-        resp = jsonify({
-            "error": "Mood detection failed",
-            "details": str(e)
-        })
-        resp.headers["Access-Control-Allow-Origin"] = "https://vibexx.onrender.com"
-        return resp, 500
+        return jsonify({"error": "Mood detection failed"}), 500
