@@ -92,27 +92,32 @@ def detect_mood_gemini():
         if not data or "image" not in data:
             return jsonify({"error": "Image missing"}), 400
 
+
         image = decode_base64_image(data["image"])
 
-        # PIL → bytes
         img_buffer = BytesIO()
         image.save(img_buffer, format="JPEG")
         img_bytes = img_buffer.getvalue()
 
+
         prompt = """
-        Analyze the facial expression in the image.
-        
-        Return a JSON object with this EXACT schema:
-        {
-          "emotion": "calm" | "happy" | "sad" | "angry",
-          "confidence": number,
-          "description": "short explanation"
-        }
-        """
+You are a JSON API.
+
+ONLY return valid JSON.
+NO markdown.
+NO explanation outside JSON.
+
+Schema:
+{
+  "emotion": "calm" | "happy" | "sad" | "angry",
+  "confidence": number between 0 and 1,
+  "description": string
+}
+"""
 
 
         response = client.models.generate_content(
-            model="gemini-flash-latest", 
+            model="gemini-flash-latest",
             contents=[
                 types.Content(
                     parts=[
@@ -124,25 +129,37 @@ def detect_mood_gemini():
                     ]
                 )
             ],
-
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.3 
+                temperature=0.3
             )
         )
 
-        if not response.text:
-            raise ValueError("Empty response from Gemini")
+        if not response or not response.text:
+            logging.error("Gemini returned empty response")
+            return jsonify({"error": "Empty response from Gemini"}), 500
+
+        logging.info(f"GEMINI RAW RESPONSE 👉 {response.text}")
 
 
-        result = json.loads(response.text)
+        try:
+            result = json.loads(response.text)
+        except json.JSONDecodeError as e:
+            logging.error(f"Invalid JSON from Gemini: {response.text}")
+            return jsonify({"error": "Invalid JSON from Gemini"}), 500
 
-        emotion = result.get("emotion", "calm").lower()
+
+        emotion = str(result.get("emotion", "calm")).lower()
         if emotion not in ALLOWED_EMOTIONS:
             emotion = "calm"
 
-        confidence = float(result.get("confidence", 0.5))
+        try:
+            confidence = float(result.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            confidence = 0.0
+
         description = result.get("description", "Analysis unavailable")
+
 
         return jsonify({
             "emotion": emotion,
@@ -151,10 +168,8 @@ def detect_mood_gemini():
         }), 200
 
     except Exception as e:
-        logging.error(f"Gemini API Error: {e}")
-
+        logging.exception("Gemini mood detection failed")
         return jsonify({
-            "emotion": "calm",
-            "confidence": 0.0,
-            "description": "Could not verify mood (API Error)."
-        }), 200 
+            "error": "Mood detection failed",
+            "details": str(e)
+        }), 500
