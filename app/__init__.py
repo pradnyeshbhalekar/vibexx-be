@@ -18,9 +18,11 @@ def create_app():
 )
 
     # Configure CORS first
+    # Configure CORS first
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
     CORS(
         app,
-        resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000","https://vibexx.onrender.com"]}},
+        resources={r"/*": {"origins": allowed_origins}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],

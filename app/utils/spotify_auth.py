@@ -1,10 +1,10 @@
 from spotipy.oauth2 import SpotifyOAuth
-from spotipy.cache_handler import FlaskSessionCacheHandler
+from spotipy.cache_handler import MemoryCacheHandler
 from flask import session
 import os
 
 def get_spotify_oauth():
-    cache_handler = FlaskSessionCacheHandler(session)
+    cache_handler = MemoryCacheHandler()
 
     return SpotifyOAuth(
         client_id=os.getenv("SPOTIFY_CLIENT_ID"),

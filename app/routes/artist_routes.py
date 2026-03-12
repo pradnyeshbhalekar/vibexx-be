@@ -8,8 +8,32 @@ artist_routes = Blueprint("artist_routes", __name__, url_prefix="/api/artists")
 @artist_routes.route("/top-30", methods=["GET"])
 def get_top_artists():
     try:
-        payload = require_jwt()  
-        sp = spotipy.Spotify(auth=payload["access_token"])
+        payload = require_jwt()
+        access_token = payload.get("access_token")
+        refresh_token = payload.get("refresh_token")
+
+        sp = spotipy.Spotify(auth=access_token)
+
+        try:
+            # Test the token
+            sp.current_user()
+        except spotipy.SpotifyException as e:
+            if e.http_status == 401 and refresh_token:
+                # Token expired, try refreshing
+                print("[INFO] Spotify access token expired, refreshing...")
+                from app.utils.spotify_auth import get_spotify_oauth
+                sp_oauth = get_spotify_oauth()
+                token_info = sp_oauth.refresh_access_token(refresh_token)
+                new_access_token = token_info.get("access_token")
+
+                if new_access_token:
+                    sp = spotipy.Spotify(auth=new_access_token)
+                    print("[INFO] Token refreshed successfully.")
+                    # Note: Ideally we'd update the JWT here, but for now we just use the fresh token for the request
+                else:
+                    raise Exception("Failed to refresh Spotify token")
+            else:
+                raise e
 
         results = sp.current_user_top_artists(
             limit=30,
