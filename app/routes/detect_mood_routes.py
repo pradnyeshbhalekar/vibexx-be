@@ -11,7 +11,7 @@ from google.genai import types
 
 # ---------------- Gemini (new SDK) ----------------
 
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+# Client will be initialized inside the route
 
 ALLOWED_EMOTIONS = ["calm", "happy", "sad", "angry"]
 
@@ -46,7 +46,7 @@ detect_mood_routes = Blueprint(
 
 # ---------------- FER route (lazy import as requested) ----------------
 
-@detect_mood_routes.route("/", methods=["POST", "OPTIONS"])
+@detect_mood_routes.route("/", methods=["POST"])
 def detect_mood():
 
     # 🔒 Lazy import (deployment-safe)
@@ -83,13 +83,13 @@ def detect_mood():
         return jsonify({"error": "Failed to process image"}), 500
 
 
-@detect_mood_routes.route("/gemini", methods=["POST", "OPTIONS"])
+@detect_mood_routes.route("/gemini", methods=["POST"])
 def detect_mood_gemini():
-    # Let Flask-CORS handle OPTIONS automatically
-    if request.method == "OPTIONS":
-        return "", 204
 
     try:
+        api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_GENAI_API_KEY")
+        client = genai.Client(api_key=api_key)
+
         data = request.get_json(silent=True)
         if not data or "image" not in data:
             return jsonify({"error": "Image missing"}), 400
@@ -154,4 +154,4 @@ Schema:
 
     except Exception as e:
         logging.exception("Gemini mood detection failed")
-        return jsonify({"error": "Mood detection failed"}), 500
+        return jsonify({"error": f"Mood detection failed: {str(e)}"}), 500
